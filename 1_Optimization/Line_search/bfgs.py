@@ -1,0 +1,219 @@
+import numpy as np
+import finite_differences as fi
+import matplotlib.pyplot as plt
+'''
+    BFGS
+'''
+
+#
+# Auxiliar
+#
+def _is_armijo_condition_satisfied(f,X_k,a_k,P_k,c1):
+    return f(X_k + a_k*P_k) <= f(X_k) + c1*a_k*np.dot(fi.gradient(f,X_k).T, P_k)
+
+
+def _is_curvature_condition_satisfied(f,X_k,a_k,P_k,c2):
+    print(X_k,X_k + a_k*P_k)
+    izq = -np.dot(fi.gradient(f,X_k + a_k*P_k).T, P_k)
+    der = -c2*np.dot(fi.gradient(f,X_k).T, P_k)
+    comp = izq <= der
+    print(f'\t\t\t\tCurvature:\n\t\t\t\tizq: {izq}\tder:{der}')
+    return comp
+    return -np.dot(fi.gradient(f,X_k + a_k*P_k).T, P_k) <= -c2*np.dot(fi.gradient(f,X_k).T, P_k)
+
+def _is_strong_curvature_condition_satisfied(f,X_k,a_k,P_k,c2):
+    return abs(np.dot(fi.gradient(f,X_k + a_k*P_k).T, P_k)) <= c2*abs(np.dot(fi.gradient(f,X_k).T, P_k))
+
+def _is_wolfe_conditions_satisfied(f,X_k,a_k,P_k,take_strong=False,c1=10e-4,c2=0.9):
+    armijo = _is_armijo_condition_satisfied(f,X_k,a_k,P_k,c1)
+    curvature = _is_strong_curvature_condition_satisfied(f,X_k,a_k,P_k,c2) if take_strong else _is_curvature_condition_satisfied(f,X_k,a_k,P_k,c2)
+    # print(f'\t\t\tArmijo: {armijo}\tCurvature: {curvature}')
+    return armijo and curvature
+
+def _compute_H0(X_old,X_new,f):
+    I = np.identity(X_old.shape[0], dtype=float)
+    y1 = fi.gradient(f,X_new) - fi.gradient(f,X_old)
+    s1 = X_new - X_old
+    
+    return np.matmul(y1.T,s1) / np.matmul(y1.T,y1) * I
+
+def _compute_H(H_k,X_old,X_new,f):
+    I = np.identity(X_old.shape[0], dtype=float)
+    y_k = fi.gradient(f,X_new) - fi.gradient(f,X_old)
+    s_k = X_new - X_old
+    rho_k = 1/np.matmul(y_k.T,s_k)
+    
+    W1 = I - rho_k * np.matmul(s_k, y_k.T)
+    W2 = I - rho_k * np.matmul(y_k, s_k.T)    
+    
+    return np.matmul(np.matmul(W1,H_k), W2) + rho_k * np.matmul(s_k,s_k.T)
+
+#
+# BFGS
+#
+def bachtracking(f,X_k,P_k,tau=1.,rho=0.9,take_strong=False,c1=1e-3,c2=0.9):
+    has_optimal_step_size_found = _is_wolfe_conditions_satisfied(f,X_k,tau,P_k,take_strong,c1,c2)
+    while not has_optimal_step_size_found:
+        tau = rho*tau
+        print('\t\t\tNew tau:',tau)
+        has_optimal_step_size_found = _is_wolfe_conditions_satisfied(f,X_k,tau,P_k,take_strong,c1,c2)
+    return tau
+
+def update_H(X_old,X_new,f,epoch,H_k=None):
+    if epoch>0:
+        return _compute_H(H_k,X_old,X_new,f)
+    return _compute_H0(X_old,X_new,f)
+
+def bfgs(X,f,K=10,tau=1.,rho=0.9,take_strong=False):
+    '''
+        Steepest descent algorithm using the numerical gradient
+        and intelligent lenght step \alpha_k by bachtracking
+        
+        Input:
+            X (numpy array): vector with dimension nx1
+            grad_f (function): Function that computes the gradient of the function. It must take just X as an mandatory input.
+            K (int): Iterations to get the optimum X
+            tau (float): bachtracking parameter \in (0,1)
+            rho (float): bachtracking parameter \in (0,1)
+            take_strong (bool): bachtracking parameter to consider or not the strong Wolfe conditions. Default: False
+            
+        Output:
+            X_log (list): history of the optimum X's
+        
+    '''
+    H = np.identity(X.shape[0], dtype=float)
+
+    X_log = [X]
+    for epoch in range(K):
+        # UI
+        # if epoch%10==0:
+        print(f'\tEpoch {epoch}/{K}:')
+        # Step direction (normalized)
+        print('\t\tStep direction...')
+        P_k = -H.dot(fi.gradient(f,X)) # We dont inv(H) since by definition H is inv(B_k)
+        P_k = P_k/np.linalg.norm(P_k)
+        # Step size
+        print('\t\tStep size...')
+        a_k = bachtracking(f,X,P_k,tau,rho,take_strong)
+        # New optimum X
+        print('\t\tNew X...')
+        X_new = X + a_k*P_k
+        # Log
+        X_log.append(X_new)
+        # Update
+        H = update_H(X,X_new,f,epoch,H)
+        X = X_new
+    return X_log
+
+#
+# Optimize
+#
+def bfgs_optimization(X0,f,K,tau=1.,rho=0.9,take_strong=False):
+    bfgs_log = bfgs(X0,f,K,tau,rho,take_strong)
+    bfgs_f_evaluated = [f(X) for X in bfgs_log]
+    
+    return bfgs_log, bfgs_f_evaluated
+
+def plot_optimization(X0,f_name,K,title='',tau=1.,rho=0.9,take_strong=False):
+    print(f'\n{f_name.capitalize()}:')
+    bfgs_log, bfgs_f_evaluated = bfgs_optimization(X0,argmin_params[f_name]['f'],K,tau,rho,take_strong)
+    print(f'\n{f_name} BFGS: ', bfgs_log[-1],'\nf(x*)=',bfgs_f_evaluated[-1],'\n')
+    
+    # Plot
+    plt.plot(bfgs_f_evaluated,'r-o',linewidth=1, markersize=6, alpha=0.5,label='SD')
+    plt.title(title)
+    plt.xlabel('Iteration k')
+    plt.ylabel('$f(x_k)$')
+    plt.legend()
+    plt.show()
+
+# Testing
+if '__main__'==__name__:
+    #
+    # Test Functions
+    #
+    def sphere(X,c=1.0):
+        '''
+            Translated Sphere's function
+                f = f(x): \R^n --> \R
+            
+            Input:
+                X (numpy array): vector with dimension nx1
+                c (float): The center of the sphere. It is assumed that the center would be an uniform vector.
+            Output:
+                (float): The value of the function evaluated on X
+            
+        '''
+        C = np.full_like(X,c, dtype=float)
+        return np.sum(np.square(np.subtract(X,C)))
+    def rosenbrock(X):
+        '''
+            Rosenbrock's function
+                f = f(x): \R^n --> \R
+            
+            Input:
+                X (numpy array): vector with dimension nx1
+            Output:
+                (float): The value of the function evaluated on X
+            
+        '''
+        return np.sum([100 * (X[i+1] - X[i]**2)**2 + (X[i] - 1)**2 for i in range(X.shape[0]-1)])
+    def perm(X,b=1):
+        '''
+            Perm's function
+                f = f(x): \R^n --> \R
+            
+            Input:
+                X (numpy array): vector with dimension nx1
+                b (float): just a perm's constant
+            Output:
+                (float): The value of the function evaluated on X
+            
+        '''
+        dim = X.shape[0]
+        def _j_sum_addend(x_j,i,j):
+            return (j**i + b) * ( ( x_j/j )**i - 1) 
+        def _j_sum(X,i):
+            return sum([ _j_sum_addend(X[j-1],i,j)for j in range(1,dim+1)])
+        
+        return sum([ _j_sum(X,i)**2 for i in range(1,dim+1)])
+
+    # Initialize Tests
+    dimension = 5
+    X0 = np.full((dimension,),0.5, dtype=float)
+    argmin_params = {
+        'sphere':{
+            'f':sphere,# Function
+            'x':X0, # Numpy array
+            'epochs':10,
+            'step_size':0.5,
+            'title':'Translated Sphere in $R^n$',
+        },
+        'rosen':{
+            'f':rosenbrock,# Function
+            'x':X0, # Numpy array
+            'epochs':50, #100000 pero es muy lento
+            'step_size':1e-3,
+            'title':'Rosenbrock in $R^n$',
+        },
+        'perm':{
+            'f':perm,# Function
+            'x':X0, # Numpy array
+            'epochs':1000, #300000 pero es muy lento
+            'step_size':1e-8,
+            'title':'Perm in $R^n$',
+        },
+    }
+    
+    plot_optimization(
+        argmin_params['perm']['x'], 'perm',K=argmin_params['perm']['epochs'],
+        title=argmin_params['perm']['title'],
+        tau=1.,rho=0.9,take_strong=False
+    )
+    # for function_name,function_params in argmin_params.items():
+    #     plot_optimization(
+    #         function_params['x'], function_name,K=function_params['epochs'],
+    #         title=function_params['title'],
+    #         tau=1.,rho=0.9,take_strong=False
+    #     )
+
