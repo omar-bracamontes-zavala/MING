@@ -12,7 +12,6 @@ import test_functions as tf
 def _is_armijo_condition_satisfied(f,X_k,a_k,P_k,c1):
     return f(X_k + a_k*P_k) <= f(X_k) + c1*a_k*np.dot(fi.gradient(f,X_k).T, P_k)
 
-
 def _is_curvature_condition_satisfied(f,X_k,a_k,P_k,c2):
     print(X_k,X_k + a_k*P_k)
     izq = -np.dot(fi.gradient(f,X_k + a_k*P_k).T, P_k)
@@ -23,6 +22,12 @@ def _is_curvature_condition_satisfied(f,X_k,a_k,P_k,c2):
     return -np.dot(fi.gradient(f,X_k + a_k*P_k).T, P_k) <= -c2*np.dot(fi.gradient(f,X_k).T, P_k)
 
 def _is_strong_curvature_condition_satisfied(f,X_k,a_k,P_k,c2):
+    print(X_k,X_k + a_k*P_k)
+    izq = abs(np.dot(fi.gradient(f,X_k + a_k*P_k).T, P_k))
+    der = c2*abs(np.dot(fi.gradient(f,X_k).T, P_k))
+    comp = izq <= der
+    print(f'\t\t\t\tCurvature:\n\t\t\t\tizq: {izq}\tder:{der}')
+    return comp
     return abs(np.dot(fi.gradient(f,X_k + a_k*P_k).T, P_k)) <= c2*abs(np.dot(fi.gradient(f,X_k).T, P_k))
 
 def _is_wolfe_conditions_satisfied(f,X_k,a_k,P_k,take_strong=False,c1=10e-4,c2=0.9):
@@ -57,6 +62,8 @@ def bachtracking(f,X_k,P_k,tau=1.,rho=0.9,take_strong=False,c1=1e-3,c2=0.9):
     while not has_optimal_step_size_found:
         tau = rho*tau
         print('\t\t\tNew tau:',tau)
+        if np.array_equal(X_k,X_k+tau*P_k):
+            raise RuntimeError(f'No step size found using tau={tau}, rho={rho}')
         has_optimal_step_size_found = _is_wolfe_conditions_satisfied(f,X_k,tau,P_k,take_strong,c1,c2)
     return tau
 
@@ -115,9 +122,9 @@ def bfgs_optimization(X0,f,K,tau=1.,rho=0.9,take_strong=False):
     
     return bfgs_log, bfgs_f_evaluated
 
-def plot_optimization(X0,f_name,K,title='',tau=1.,rho=0.9,take_strong=False):
+def plot_optimization(X0,f,K,f_name='',title='',tau=1.,rho=0.9,take_strong=False):
     print(f'\n{f_name.capitalize()}:')
-    bfgs_log, bfgs_f_evaluated = bfgs_optimization(X0,argmin_params[f_name]['f'],K,tau,rho,take_strong)
+    bfgs_log, bfgs_f_evaluated = bfgs_optimization(X0,f,K,tau,rho,take_strong)
     print(f'\n{f_name} BFGS: ', bfgs_log[-1],'\nf(x*)=',bfgs_f_evaluated[-1],'\n')
     
     # Plot
@@ -132,9 +139,9 @@ def plot_optimization(X0,f_name,K,title='',tau=1.,rho=0.9,take_strong=False):
 if '__main__'==__name__:
     
     plot_optimization(
-        tf.argmin_params['perm']['x'], 'perm',K=tf.argmin_params['perm']['epochs'],
-        title=tf.argmin_params['perm']['title'],
-        tau=1.,rho=0.9,take_strong=False
+        tf.argmin_params['perm']['x'],f=tf.argmin_params['perm']['f'],K=tf.argmin_params['perm']['epochs'],
+        f_name='perm', title=tf.argmin_params['perm']['title'],
+        tau=1.,rho=0.9,take_strong=True
     )
     # for function_name,function_params in tf.argmin_params.items():
     #     plot_optimization(

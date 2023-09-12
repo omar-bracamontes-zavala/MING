@@ -28,7 +28,7 @@ def rosenbrock(X):
         
     '''
     return np.sum([100 * (X[i+1] - X[i]**2)**2 + (X[i] - 1)**2 for i in range(X.shape[0]-1)])
-def perm(X,b=1):
+def perm(X,b=1.):
     '''
         Perm's function
             f = f(x): \R^n --> \R
@@ -48,6 +48,17 @@ def perm(X,b=1):
     
     return sum([ _j_sum(X,i)**2 for i in range(1,dim+1)])
 
+def perm_2(X, b=1.):
+    dim = X.shape[0]
+    result = 0
+
+    for i in range(1, dim+1):
+        inner = 0
+        for j in range(1, dim+1):
+            inner += ((j) **(i) + b) * ((X[j-1] / j) ** (i) - 1)
+        result += inner ** 2
+
+    return result
 # Initialize test parameters
 dimension = 5
 X0 = np.full((dimension,),0.5, dtype=float)
@@ -67,7 +78,7 @@ argmin_params = {
         'title':'Rosenbrock in $R^n$',
     },
     'perm':{
-        'f':perm,# Function
+        'f':perm_2,# Function
         'x':X0, # Numpy array
         'epochs':1000, #300000 pero es muy lento
         'step_size':1e-8,
