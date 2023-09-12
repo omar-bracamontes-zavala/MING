@@ -57,7 +57,7 @@ def _compute_H(H_k,X_old,X_new,f):
 #
 # BFGS
 #
-def bachtracking(f,X_k,P_k,tau=1.,rho=0.9,take_strong=False,c1=1e-3,c2=0.9):
+def backtracking(f,X_k,P_k,tau=1.,rho=0.9,take_strong=False,c1=1e-3,c2=0.9):
     has_optimal_step_size_found = _is_wolfe_conditions_satisfied(f,X_k,tau,P_k,take_strong,c1,c2)
     while not has_optimal_step_size_found:
         tau = rho*tau
@@ -75,15 +75,15 @@ def update_H(X_old,X_new,f,epoch,H_k=None):
 def bfgs(X,f,K=10,tau=1.,rho=0.9,take_strong=False):
     '''
         Steepest descent algorithm using the numerical gradient
-        and intelligent lenght step \alpha_k by bachtracking
+        and intelligent lenght step \alpha_k by backtracking
         
         Input:
             X (numpy array): vector with dimension nx1
             grad_f (function): Function that computes the gradient of the function. It must take just X as an mandatory input.
             K (int): Iterations to get the optimum X
-            tau (float): bachtracking parameter \in (0,1)
-            rho (float): bachtracking parameter \in (0,1)
-            take_strong (bool): bachtracking parameter to consider or not the strong Wolfe conditions. Default: False
+            tau (float): backtracking parameter \in (0,1)
+            rho (float): backtracking parameter \in (0,1)
+            take_strong (bool): backtracking parameter to consider or not the strong Wolfe conditions. Default: False
             
         Output:
             X_log (list): history of the optimum X's
@@ -102,7 +102,7 @@ def bfgs(X,f,K=10,tau=1.,rho=0.9,take_strong=False):
         P_k = P_k/np.linalg.norm(P_k)
         # Step size
         print('\t\tStep size...')
-        a_k = bachtracking(f,X,P_k,tau,rho,take_strong)
+        a_k = backtracking(f,X,P_k,tau,rho,take_strong)
         # New optimum X
         print('\t\tNew X...')
         X_new = X + a_k*P_k
