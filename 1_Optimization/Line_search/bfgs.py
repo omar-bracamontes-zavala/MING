@@ -13,27 +13,14 @@ def _is_armijo_condition_satisfied(f,X_k,a_k,P_k,c1):
     return f(X_k + a_k*P_k) <= f(X_k) + c1*a_k*np.dot(fi.gradient(f,X_k).T, P_k)
 
 def _is_curvature_condition_satisfied(f,X_k,a_k,P_k,c2):
-    print(X_k,X_k + a_k*P_k)
-    izq = -np.dot(fi.gradient(f,X_k + a_k*P_k).T, P_k)
-    der = -c2*np.dot(fi.gradient(f,X_k).T, P_k)
-    comp = izq <= der
-    print(f'\t\t\t\tCurvature:\n\t\t\t\tizq: {izq}\tder:{der}')
-    return comp
     return -np.dot(fi.gradient(f,X_k + a_k*P_k).T, P_k) <= -c2*np.dot(fi.gradient(f,X_k).T, P_k)
 
 def _is_strong_curvature_condition_satisfied(f,X_k,a_k,P_k,c2):
-    print(X_k,X_k + a_k*P_k)
-    izq = abs(np.dot(fi.gradient(f,X_k + a_k*P_k).T, P_k))
-    der = c2*abs(np.dot(fi.gradient(f,X_k).T, P_k))
-    comp = izq <= der
-    print(f'\t\t\t\tCurvature:\n\t\t\t\tizq: {izq}\tder:{der}')
-    return comp
     return abs(np.dot(fi.gradient(f,X_k + a_k*P_k).T, P_k)) <= c2*abs(np.dot(fi.gradient(f,X_k).T, P_k))
 
 def _is_wolfe_conditions_satisfied(f,X_k,a_k,P_k,take_strong=False,c1=10e-4,c2=0.9):
     armijo = _is_armijo_condition_satisfied(f,X_k,a_k,P_k,c1)
     curvature = _is_strong_curvature_condition_satisfied(f,X_k,a_k,P_k,c2) if take_strong else _is_curvature_condition_satisfied(f,X_k,a_k,P_k,c2)
-    # print(f'\t\t\tArmijo: {armijo}\tCurvature: {curvature}')
     return armijo and curvature
 
 def _compute_H0(X_old,X_new,f):
@@ -74,7 +61,7 @@ def update_H(X_old,X_new,f,epoch,H_k=None):
 
 def bfgs(X,f,K=10,tau=1.,rho=0.9,take_strong=False):
     '''
-        Steepest descent algorithm using the numerical gradient
+        BFgs algorithm using the numerical gradient
         and intelligent lenght step \alpha_k by backtracking
         
         Input:
@@ -94,8 +81,8 @@ def bfgs(X,f,K=10,tau=1.,rho=0.9,take_strong=False):
     X_log = [X]
     for epoch in range(K):
         # UI
-        # if epoch%10==0:
-        print(f'\tEpoch {epoch}/{K}:')
+        if epoch%10==0:
+            print(f'\tEpoch {epoch}/{K}:')
         # Step direction (normalized)
         print('\t\tStep direction...')
         P_k = -H.dot(fi.gradient(f,X)) # We dont inv(H) since by definition H is inv(B_k)
@@ -138,15 +125,10 @@ def plot_optimization(X0,f,K,f_name='',title='',tau=1.,rho=0.9,take_strong=False
 # Testing
 if '__main__'==__name__:
     
-    plot_optimization(
-        tf.argmin_params['perm']['x'],f=tf.argmin_params['perm']['f'],K=tf.argmin_params['perm']['epochs'],
-        f_name='perm', title=tf.argmin_params['perm']['title'],
-        tau=1.,rho=0.9,take_strong=True
-    )
-    # for function_name,function_params in tf.argmin_params.items():
-    #     plot_optimization(
-    #         function_params['x'], function_name,K=function_params['epochs'],
-    #         title=function_params['title'],
-    #         tau=1.,rho=0.9,take_strong=False
-    #     )
+    for function_name,function_params in tf.argmin_params.items():
+        plot_optimization(
+            function_params['x'], function_name,K=function_params['epochs'],
+            title=function_params['title'],
+            tau=1.,rho=0.9,take_strong=False
+        )
 
