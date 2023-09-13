@@ -124,10 +124,10 @@ def plot_optimization(X0,f,K,f_name='',title='',tau=1.,rho=0.9,take_strong=False
 
 # Testing
 if '__main__'==__name__:
-    
-    for function_name,function_params in tf.argmin_params.items():
+
+    for function_params in tf.argmin_params.values():
         plot_optimization(
-            function_params['x'], function_name,K=function_params['epochs'],
+            function_params['x'], function_params['f'],K=function_params['epochs'],
             title=function_params['title'],
             tau=1.,rho=0.9,take_strong=False
         )
